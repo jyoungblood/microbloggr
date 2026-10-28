@@ -6,15 +6,18 @@ See the [publishing roadmap](docs/publishing-roadmap.md) for guided installation
 
 ## Package development
 
-Use Node 22.22 or newer. This package targets Astro 7.4.0. `npm run dev` starts the isolated test site.
+Use Node 22.22 or newer. This package targets Astro 7.4.0. `npm run dev` starts the shared playground using local package source.
 
 ```sh
 npm install
-npm run seed
+git clone https://github.com/jyoungblood/microbloggr-demo.git playground # If not already present.
+npm --prefix playground ci
 npm run dev
 ```
 
 The terminal prints the active URL, normally `http://127.0.0.1:4321`.
+
+Running `npm run dev` inside `playground` has the same behavior. Package and demo edits appear in that shared dev server. Run `npm run dev:fixture` to use the isolated test site without the demo checkout. Demo builds always use its installed, pinned package; `npm --prefix playground run dev:package` previews that installed version locally.
 
 - `/editor` opens Microbloggr. The Astro toolbar also has a Microbloggr button.
 - `/editor/archive` shows all sample posts with search and filters.
