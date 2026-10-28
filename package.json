@@ -48,7 +48,7 @@
     "url": "https://github.com/jyoungblood/microbloggr/issues"
   },
   "scripts": {
-    "dev": "npm --prefix playground run dev --",
+    "dev": "npm --prefix ../microbloggr-demo run dev --",
     "dev:fixture": "astro dev --root tests/fixtures/site",
     "build": "astro build --root tests/fixtures/site",
     "preview": "astro preview --root tests/fixtures/site",

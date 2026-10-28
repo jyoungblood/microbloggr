@@ -13,6 +13,3 @@ dist/
 *.pem
 *.key
 .npmrc
-
-# Independent demo checkout
-/playground/
