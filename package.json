@@ -1,0 +1,72 @@
+{
+  "name": "microbloggr",
+  "version": "0.0.1",
+  "description": "A local-only microblog editor for Astro.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "templates"
+  ],
+  "keywords": [
+    "astro-integration",
+    "microblog"
+  ],
+  "peerDependencies": {
+    "astro": "^7.4.0"
+  },
+  "dependencies": {
+    "@codemirror/commands": "6.11.0",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/state": "6.7.4",
+    "@codemirror/view": "6.43.11",
+    "@lezer/highlight": "1.2.5",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/markdown": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
+    "file-type": "22.2.0",
+    "marked": "18.1.1",
+    "sanitize-html": "2.18.1",
+    "yaml": "2.9.0"
+  },
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jyoungblood/microbloggr.git"
+  },
+  "homepage": "https://github.com/jyoungblood/microbloggr#readme",
+  "bugs": {
+    "url": "https://github.com/jyoungblood/microbloggr/issues"
+  },
+  "scripts": {
+    "dev": "astro dev --root tests/fixtures/site",
+    "build": "astro build --root tests/fixtures/site",
+    "preview": "astro preview --root tests/fixtures/site",
+    "seed": "node scripts/seed.mjs",
+    "seed:reset": "node scripts/seed.mjs --reset",
+    "check": "astro check --root tests/fixtures/site",
+    "test": "node --test tests/*.test.mjs",
+    "test:integration": "node scripts/check-integration.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "jsdom": "29.1.1",
+    "prettier": "3.9.10",
+    "prettier-plugin-astro": "1.1.1",
+    "@astrojs/check": "0.9.10",
+    "@types/sanitize-html": "^2.16.0",
+    "typescript": "^5.9.3",
+    "astro": "7.4.0"
+  }
+}

@@ -1,0 +1,129 @@
+---
+import { dateLabel, dateOf, markdown, safeUrl, type Post } from "../content";
+import { renderProvider } from "../embeds.mjs";
+import Icon from "./Icon.astro";
+import { editorReturn } from "../navigation.mjs";
+interface Props {
+  post: Post;
+  editorUrl: string;
+  siteBase: string;
+  detail?: boolean;
+}
+const { post, editorUrl, siteBase, detail = false } = Astro.props;
+// Saving the edit comes back to this feed or detail page.
+const returnTo = editorReturn(Astro.url.pathname + Astro.url.search, editorUrl);
+const data = post.data;
+const body = markdown(post.body || "", siteBase);
+const media =
+  data.type === "audio" || data.type === "video" ? data.media : undefined;
+const mediaSrc = safeUrl(media?.src, siteBase);
+---
+
+<article class="post-card" data-post-id={post.id}>
+  <header class="post-meta">
+    {detail ? (
+      <time datetime={dateOf(post).toISOString()}>
+        {dateLabel(dateOf(post))}
+      </time>
+    ) : (
+      <a
+        class="post-date"
+        href={`${editorUrl}/posts/${encodeURIComponent(post.id)}`}
+      >
+        <time datetime={dateOf(post).toISOString()}>
+          {dateLabel(dateOf(post))}
+        </time>
+      </a>
+    )}
+    <div class="post-actions">
+      {data.status === "draft" && <span class="draft-badge">Draft</span>}
+      <a
+        class="icon-button"
+        href={`${editorUrl}/posts/${encodeURIComponent(post.id)}/edit${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
+        aria-label={`Edit ${data.title || data.type + " post"}`}
+        title="Edit"
+      >
+        <Icon name="edit" />
+      </a>
+    </div>
+  </header>
+  {data.type === "photo" &&
+    data.photos?.map((photo) => (
+      <img
+        class="post-image"
+        src={safeUrl(photo.src, siteBase)}
+        alt=""
+        loading="lazy"
+      />
+    ))}
+  <div class="post-content">
+    {data.title && <h2>{data.title}</h2>}
+    {data.type === "link" && data.link && (
+      <a
+        class="link-preview"
+        href={safeUrl(data.link.url)}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <strong>{new URL(data.link.url).hostname}</strong>
+        <p>{data.link.url}</p>
+        <span>
+          Visit link <Icon name="external" />
+        </span>
+      </a>
+    )}
+    {media && mediaSrc && (
+      <div class="media-preview">
+        {media.poster && data.type === "audio" && media.kind === "file" && (
+          <img
+            class="media-poster"
+            src={safeUrl(media.poster, siteBase)}
+            alt=""
+            loading="lazy"
+          />
+        )}
+        {media.kind === "file" && data.type === "audio" && (
+          <audio controls preload="none" src={mediaSrc}>
+            Your browser does not support this audio.
+          </audio>
+        )}
+        {media.kind === "file" && data.type === "video" && (
+          <video
+            controls
+            preload="none"
+            src={mediaSrc}
+            poster={safeUrl(media.poster, siteBase)}
+          >
+            <track kind="captions" />
+            Your browser does not support this video.
+          </video>
+        )}
+        {media.kind === "embed" && (
+          <Fragment
+            set:html={renderProvider(media.embed ?? media.src, data.type)}
+          />
+        )}
+      </div>
+    )}
+    <div class="prose" set:html={body} />
+    {data.tags.length > 0 && (
+      <ul role="list" class="tags">
+        {data.tags.map((tag) => (
+          <li>
+            <a href={`${editorUrl}/archive?tag=${encodeURIComponent(tag)}`}>
+              #{tag}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+  {detail && (
+    <footer class="post-footer">
+      <div class="date-details">
+        Created {dateLabel(data.createdAt)} · Updated{" "}
+        {dateLabel(data.updatedAt)}
+      </div>
+    </footer>
+  )}
+</article>

@@ -1,0 +1,30 @@
+---
+import Icon from "./Icon.astro";
+interface Props {
+  page: number;
+  pageCount: number;
+  pageLink: (page: number) => string;
+}
+const { page, pageCount, pageLink } = Astro.props;
+---
+
+{pageCount > 1 && (
+  <nav class="pagination" aria-label="Pagination">
+    {page > 1 ? (
+      <a class="button" href={pageLink(page - 1)}>
+        <Icon name="prev" />
+        Prev
+      </a>
+    ) : (
+      <span />
+    )}
+    {page < pageCount ? (
+      <a class="button" href={pageLink(page + 1)}>
+        Next
+        <Icon name="next" />
+      </a>
+    ) : (
+      <span />
+    )}
+  </nav>
+)}

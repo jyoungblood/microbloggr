@@ -1,0 +1,47 @@
+---
+import type { CollectionEntry } from "astro:content";
+interface Props {
+  post: CollectionEntry<"microblog">;
+}
+const { post } = Astro.props;
+const data = post.data;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const cover =
+  data.type === "photo"
+    ? data.photos?.[0]?.src
+    : data.type === "audio" || data.type === "video"
+      ? data.media?.poster
+      : undefined;
+const image = cover?.startsWith("/") ? `${base}${cover}` : cover;
+const excerpt = (post.body || "")
+  .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+  .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+  .replace(/[#*_`>~]/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+const title = data.title || excerpt.slice(0, 80) || `${data.type} post`;
+const date = data.publishedAt || data.createdAt;
+---
+
+<a
+  class:list={["site-tile", { "has-image": image }]}
+  href={`${base}/posts/${post.id}/`}
+  aria-label={title}
+>
+  {image && <img src={image} alt="" loading="lazy" />}
+  <div class="tile-content">
+    <div class="tile-meta">
+      <span>{data.type}</span>
+      <time datetime={date.toISOString()}>
+        {date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "UTC",
+        })}
+      </time>
+    </div>
+    {!image && <p class="tile-excerpt">{excerpt.slice(0, 360)}</p>}
+    <h2>{title}</h2>
+  </div>
+</a>

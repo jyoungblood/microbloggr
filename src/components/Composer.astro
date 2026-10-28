@@ -1,0 +1,358 @@
+---
+import type { Post, PostType } from "../content";
+import Icon from "./Icon.astro";
+import FormatIcon from "./FormatIcon.astro";
+import PostTypeIcon from "./PostTypeIcon.astro";
+import MediaIcon from "./MediaIcon.astro";
+interface Props {
+  type: PostType;
+  post?: Post;
+  revision?: string;
+  editorUrl: string;
+  returnTo?: string;
+}
+const { type, post, revision, editorUrl, returnTo } = Astro.props;
+const data = post?.data;
+const initial = {
+  id: post?.id,
+  revision,
+  body: post?.body || "",
+  data: data || {
+    type,
+    title: "",
+    tags: [],
+    status: "draft",
+    publishedAt: null,
+  },
+};
+const source =
+  data?.type === "photo"
+    ? data.photos?.[0]?.src
+    : data?.type === "link"
+      ? data.link?.url
+      : data?.type === "audio" || data?.type === "video"
+        ? data.media?.src
+        : "";
+const media =
+  data?.type === "audio" || data?.type === "video" ? data.media : undefined;
+const playable = type === "audio" || type === "video";
+const label = (value: string) => value[0].toUpperCase() + value.slice(1);
+// Grouped like the workhole editor toolbar.
+const formats: [string, string, string?][][] = [
+  [
+    ["bold", "Bold"],
+    ["italic", "Italic"],
+    ["strike", "Strikethrough"],
+  ],
+  [
+    ["heading-1", "Heading 1", "H1"],
+    ["heading-2", "Heading 2", "H2"],
+    ["heading-3", "Heading 3", "H3"],
+  ],
+  [
+    ["bulletList", "Bullet list"],
+    ["orderedList", "Numbered list"],
+  ],
+  [
+    ["blockquote", "Quote"],
+    ["code", "Code"],
+    ["link", "Link"],
+    ["horizontalRule", "Horizontal rule"],
+  ],
+];
+---
+
+<section class="composer" aria-labelledby="composer-heading">
+  <header class="composer-heading">
+    <PostTypeIcon type={type} />
+    <h2 id="composer-heading">{`${post ? "Edit" : "New"} ${type === "text" ? "post" : type}`}</h2>
+    <p class="form-status sr-only" role="status" aria-live="polite">
+      Loading editor…
+    </p>
+    <a
+      class="icon-button"
+      data-close
+      href={returnTo || (post ? `${editorUrl}/posts/${post.id}` : editorUrl)}
+      aria-label="Close"
+      title="Close"
+    >
+      <Icon name="close" />
+    </a>
+  </header>
+  <p class="form-error" role="alert" hidden></p>
+  <noscript>Enable JavaScript to edit posts.</noscript>
+  <form
+    data-composer
+    data-editor-url={editorUrl}
+    data-return-to={returnTo}
+    data-initial={JSON.stringify(initial)}
+  >
+    <fieldset disabled>
+      <div class="composer-fields">
+        {(type === "photo" || playable) && (
+          <section
+            class="media-field"
+            data-media-field
+            aria-label={type === "photo" ? "Photos" : `${label(type)} source`}
+          >
+            <input
+              class="sr-only"
+              id="upload"
+              type="file"
+              tabindex="-1"
+              multiple={type === "photo"}
+              accept={
+                type === "photo"
+                  ? ".jpg,.jpeg,.png,.webp,.gif,.avif"
+                  : type === "audio"
+                    ? ".mp3,.m4a,.wav,.ogg,.oga,.opus"
+                    : ".mp4,.webm"
+              }
+            />
+            {type === "photo" && (
+              <ol class="photo-grid" data-photos aria-label="Photos"></ol>
+            )}
+            {playable && (
+              <div class="media-current" data-media-current hidden>
+                <div class="media-stage" data-media-stage></div>
+                <button
+                  type="button"
+                  class="remove-media"
+                  data-media-remove
+                  aria-label={`Remove ${type}`}
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+            )}
+            <div class="media-picker" data-media-picker>
+              <button type="button" class="picker-option" data-pick-upload>
+                <MediaIcon name={type === "photo" ? "photo" : type} />
+                <span data-upload-label>
+                  {type === "photo"
+                    ? "Upload photos"
+                    : `Upload ${type === "audio" ? "audio" : "a video"}`}
+                </span>
+              </button>
+              <button type="button" class="picker-option" data-pick-web>
+                <MediaIcon name="web" />
+                <span>
+                  {type === "photo"
+                    ? "Add photo from web"
+                    : `Add ${type} from web`}
+                </span>
+              </button>
+            </div>
+            <div class="media-url" data-media-url hidden>
+              <label for="media-url">{label(type)} URL</label>
+              <div class="media-url-row">
+                <input id="media-url" type="url" autocomplete="off" />
+                <button type="button" class="primary" data-url-add>
+                  <Icon name="plus" />
+                  Add
+                </button>
+              </div>
+            </div>
+            {type === "photo" && (
+              <template data-photo-template>
+                <li class="photo-tile" data-photo draggable="true" tabindex="0">
+                  <img alt="" draggable="false" />
+                  <button
+                    type="button"
+                    class="remove-media"
+                    data-photo-remove
+                    tabindex="-1"
+                    aria-label="Remove photo"
+                  >
+                    <Icon name="close" />
+                  </button>
+                </li>
+              </template>
+            )}
+            <p
+              class="sr-only"
+              data-media-status
+              role="status"
+              aria-live="polite"
+            ></p>
+          </section>
+        )}
+        {playable && (
+          <>
+            <input type="hidden" id="source" name="source" value={source} />
+            <input
+              type="hidden"
+              id="media-kind"
+              name="kind"
+              value={media?.kind ?? "file"}
+            />
+          </>
+        )}
+        {type === "link" && (
+          <div class="field">
+            <label for="source">URL</label>
+            <input id="source" name="source" value={source} />
+          </div>
+        )}
+        <div class="field">
+          <label for="title">Title</label>
+          <input
+            class="title-input"
+            id="title"
+            name="title"
+            maxlength="500"
+            value={data?.title}
+          />
+        </div>
+        <div class="field">
+          <label id="body-label" class="sr-only">
+            {type === "text" ? "Post" : "Caption"}
+          </label>
+          <p class="source-reason field-help" hidden></p>
+          <div class="editor-frame">
+            <div
+              class="format-toolbar"
+              role="group"
+              aria-label="Text formatting"
+              hidden
+            >
+              {formats.map((group) => (
+                <div class="format-group">
+                  {group.map(([format, label, text]) => (
+                    <button
+                      type="button"
+                      class="icon-button"
+                      data-format={format}
+                      aria-label={label}
+                    >
+                      {text ? (
+                        <span class="format-text">{text}</span>
+                      ) : (
+                        <FormatIcon name={format} />
+                      )}
+                      <span class="tooltip" aria-hidden="true">
+                        {label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div class="link-editor" hidden>
+              <label class="sr-only" for="body-link">
+                Link URL
+              </label>
+              <input id="body-link" />
+              <button type="button" class="small primary" data-link="apply">
+                Apply
+              </button>
+              <button type="button" class="small ghost" data-link="remove">
+                Remove
+              </button>
+              <button type="button" class="small ghost" data-link="cancel">
+                Cancel
+              </button>
+            </div>
+            <div class="rich-editor prose" hidden></div>
+            <div class="source-editor"></div>
+          </div>
+        </div>
+        <div class="tags-row">
+          <div class="field">
+            <label for="tag-entry">Tags</label>
+            <div class="tag-field">
+              <ul class="tag-editor" aria-label="Selected tags"></ul>
+              <input
+                id="tag-entry"
+                autocomplete="off"
+                maxlength="100"
+                aria-describedby="tag-help"
+              />
+            </div>
+            <p class="sr-only" id="tag-help">
+              Enter or comma adds a tag. Backspace on an empty input removes the
+              last one.
+            </p>
+          </div>
+          {playable && (
+            <input
+              type="hidden"
+              id="poster"
+              name="poster"
+              value={media?.poster}
+            />
+          )}
+          <div class="field">
+            <label for="published">Published</label>
+            <input type="datetime-local" id="published" name="published" />
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" name="action" value="published" class="primary">
+          {data?.status === "published" ? "Save changes" : "Publish"}
+        </button>
+        <button
+          type="submit"
+          name="action"
+          value="draft"
+          class="ghost"
+          hidden={data?.status === "published"}
+        >
+          Save draft
+        </button>
+        <button
+          type="button"
+          class="icon-button delete"
+          data-delete
+          hidden={!post}
+          aria-label="Delete post"
+          title="Delete post"
+        >
+          <Icon name="trash" />
+        </button>
+      </div>
+    </fieldset>
+  </form>
+  <dialog
+    class="confirm-dialog"
+    data-delete-dialog
+    aria-labelledby="delete-heading"
+  >
+    <form method="dialog">
+      <h2 id="delete-heading">Delete this post?</h2>
+      <p>
+        It moves to the trash, where you can restore it or delete it forever.
+        Unsaved edits are discarded.
+      </p>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost" autofocus>
+          Cancel
+        </button>
+        <button value="delete" class="danger">
+          Delete
+        </button>
+      </div>
+    </form>
+  </dialog>
+  <dialog
+    class="confirm-dialog"
+    data-remove-dialog
+    aria-labelledby="remove-heading"
+  >
+    <form method="dialog">
+      <h2 id="remove-heading"></h2>
+      <p>
+        Saving deletes its file from your project unless another post uses it.
+      </p>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost" autofocus>
+          Cancel
+        </button>
+        <button value="remove" class="danger">
+          Remove
+        </button>
+      </div>
+    </form>
+  </dialog>
+</section>

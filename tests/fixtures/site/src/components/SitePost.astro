@@ -1,0 +1,74 @@
+---
+import { render, type CollectionEntry } from "astro:content";
+interface Props {
+  post: CollectionEntry<"microblog">;
+  detail?: boolean;
+}
+const { post, detail = false } = Astro.props;
+const { Content } = await render(post);
+const data = post.data;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const asset = (src: string) => (src.startsWith("/") ? `${base}${src}` : src);
+const date = data.publishedAt || data.createdAt;
+const Heading = detail ? "h1" : "h2";
+---
+
+<article class="single-post">
+  <header>
+    <time datetime={date.toISOString()}>
+      {date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })}
+    </time>
+    <span>{data.type}</span>
+  </header>
+  {data.title ? (
+    <Heading>
+      {detail ? (
+        data.title
+      ) : (
+        <a href={`${base}/posts/${post.id}/`}>{data.title}</a>
+      )}
+    </Heading>
+  ) : (
+    <Heading class="untitled-post">{data.type} post</Heading>
+  )}
+  {data.type === "photo" &&
+    data.photos?.map((photo) => (
+      <img src={asset(photo.src)} alt="" loading="lazy" />
+    ))}
+  {data.type === "link" && data.link && (
+    <a class="bookmark" href={data.link.url}>
+      {data.link.url} ↗
+    </a>
+  )}
+  {(data.type === "audio" || data.type === "video") && data.media && (
+    <>
+      {data.media.kind === "file" ? (
+        data.type === "audio" ? (
+          <audio controls preload="none" src={asset(data.media.src)} />
+        ) : (
+          <video controls preload="none" src={asset(data.media.src)}>
+            <track kind="captions" />
+          </video>
+        )
+      ) : (
+        <a class="bookmark" href={data.media.src}>
+          Listen or watch at the source ↗
+        </a>
+      )}
+    </>
+  )}
+  <div class="prose">
+    <Content />
+  </div>
+  <footer>
+    {data.tags.length > 0 && (
+      <span>{data.tags.map((tag) => `#${tag}`).join("  ")}</span>
+    )}
+    {!detail && <a href={`${base}/posts/${post.id}/`}>Permalink ↗</a>}
+  </footer>
+</article>

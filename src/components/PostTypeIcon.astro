@@ -1,0 +1,44 @@
+---
+import type { PostType } from "../content";
+interface Props {
+  type: PostType;
+}
+const { type } = Astro.props;
+---
+
+<svg
+  class="type-icon"
+  viewBox="0 0 32 32"
+  fill="currentColor"
+  fill-rule="evenodd"
+  aria-hidden="true"
+>
+  {type === "text" && (
+    <path d="M3 6h26v2.5H3Zm0 6.5h26V15H3Zm0 6.5h26v2.5H3Zm0 6.5h16V28H3Z" />
+  )}
+  {type === "photo" && (
+    <>
+      <path d="M5.5 10.5V9.25h3.5v1.25Z" />
+      <path d="M5 10.5h5.5L12 7.5q.3-.5 1-.5h6q.7 0 1 .5l1.5 3H27a2 2 0 0 1 2 2V25a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V12.5a2 2 0 0 1 2-2Zm11 1.75a5.75 5.75 0 1 0 0 11.5 5.75 5.75 0 1 0 0-11.5Zm0 2.5a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 1 0 0-6.5Zm10-2.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z" />
+    </>
+  )}
+  {type === "link" && (
+    <g
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.95"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      transform="translate(4 4)"
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </g>
+  )}
+  {type === "audio" && (
+    <path d="M3 12h2.25v8H3Zm5-6h2.25v20H8Zm5-3h2.25v26H13Zm5 6h2.25v14H18Zm5-3h2.25v20H23Zm5 7h2.25v6H28Z" />
+  )}
+  {type === "video" && (
+    <path d="M16 3.5a12.5 12.5 0 1 1 0 25 12.5 12.5 0 0 1 0-25Zm-2.5 8.1v8.8q0 1 .9.5l7-4.4q.8-.5 0-1l-7-4.4q-.9-.5-.9.5Z" />
+  )}
+</svg>

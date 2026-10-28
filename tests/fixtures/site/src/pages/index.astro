@@ -1,0 +1,21 @@
+---
+import { getCollection } from "astro:content";
+import SiteLayout from "../components/SiteLayout.astro";
+import SitePost from "../components/SitePost.astro";
+const posts = (
+  await getCollection("microblog", ({ data }) => data.status === "published")
+).sort(
+  (a, b) =>
+    (b.data.publishedAt || b.data.createdAt).getTime() -
+      (a.data.publishedAt || a.data.createdAt).getTime() ||
+    a.id.localeCompare(b.id),
+);
+---
+
+<SiteLayout feed>
+  <section id="posts" class="post-feed" aria-label="Posts">
+    {posts.map((post) => (
+      <SitePost post={post} />
+    ))}
+  </section>
+</SiteLayout>

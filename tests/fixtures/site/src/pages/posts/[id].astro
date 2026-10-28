@@ -1,0 +1,23 @@
+---
+import { getCollection, type CollectionEntry } from "astro:content";
+import SiteLayout from "../../components/SiteLayout.astro";
+import SitePost from "../../components/SitePost.astro";
+export async function getStaticPaths() {
+  const posts = await getCollection(
+    "microblog",
+    ({ data }) => data.status === "published",
+  );
+  return posts.map((post) => ({ params: { id: post.id }, props: { post } }));
+}
+interface Props {
+  post: CollectionEntry<"microblog">;
+}
+const { post } = Astro.props;
+---
+
+<SiteLayout title={post.data.title || "A small moment"}>
+  <a class="back-link" href={import.meta.env.BASE_URL}>
+    ← All posts
+  </a>
+  <SitePost post={post} detail />
+</SiteLayout>

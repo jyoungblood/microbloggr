@@ -1,0 +1,564 @@
+---
+import store from "virtual:microbloggr/server";
+import "../editor.css";
+import config from "virtual:microbloggr";
+import PostCard from "../components/PostCard.astro";
+import Composer from "../components/Composer.astro";
+import PostTypeIcon from "../components/PostTypeIcon.astro";
+import Icon from "../components/Icon.astro";
+import Pagination from "../components/Pagination.astro";
+import { collectionState } from "../server/changes.mjs";
+import { editorReturn } from "../navigation.mjs";
+import {
+  types,
+  newestFirst,
+  dateOf,
+  dateLabel,
+  cover,
+  excerpt,
+  type Post,
+  type PostType,
+} from "../content";
+
+const { editorUrl, siteBase } = config;
+const path = Astro.params.path || "";
+const archive = path === "archive";
+const trashView = path === "trash";
+const match = /^posts\/([^/]+)(\/edit)?$/.exec(path);
+const { posts, errors } = await store.list();
+const all = posts.sort(newestFirst);
+const post = match ? all.find((item) => item.id === match[1]) : undefined;
+const editing = !!match?.[2];
+const notFound =
+  (path !== "" && !archive && !trashView && !match) || (!!match && !post);
+const trashed = await store.listTrash();
+if (notFound) Astro.response.status = 404;
+Astro.response.headers.set("Cache-Control", "no-store");
+const query = Astro.url.searchParams;
+const returnTo = editorReturn(query.get("returnTo"), editorUrl);
+const archiveUrl = `${editorUrl}/archive${Astro.url.search}`;
+const requestedType = query.get("type") || "";
+const composeType =
+  !archive && !path && types.includes(requestedType as PostType)
+    ? (requestedType as PostType)
+    : undefined;
+const search = query.get("q")?.trim() || "";
+const tag = query.get("tag") || "";
+const status = query.get("status") || "";
+const filtered = all.filter((item) => {
+  if (!archive) return true;
+  const data = item.data;
+  const text = [
+    data.title,
+    item.body,
+    ...data.tags,
+    ...(data.type === "link" ? [data.link?.url] : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return (
+    (!search || text.includes(search.toLowerCase())) &&
+    (!requestedType || data.type === requestedType) &&
+    (!tag || data.tags.includes(tag)) &&
+    (!status || data.status === status)
+  );
+});
+const pageSize = archive ? 24 : 10;
+const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+const page = Math.min(
+  pageCount,
+  Math.max(1, Math.floor(Number(query.get("page")) || 1)),
+);
+const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+const groups = new Map<string, typeof visible>();
+for (const item of visible) {
+  const month = dateLabel(dateOf(item), true);
+  groups.set(month, [...(groups.get(month) || []), item]);
+}
+const tags = [...new Set(all.flatMap((item) => item.data.tags))].sort();
+const pageLink = (number: number) => {
+  const params = new URLSearchParams(query);
+  params.set("page", String(number));
+  return `${archive ? `${editorUrl}/archive` : editorUrl}?${params}`;
+};
+const heading = notFound
+  ? "Post not found"
+  : archive
+    ? "Archive"
+    : trashView
+      ? "Trash"
+      : editing
+        ? "Edit post"
+        : post
+          ? "Post"
+          : "Dashboard";
+const active = archive ? "archive" : "feed";
+const label = (type: string) => type[0].toUpperCase() + type.slice(1);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="microbloggr-editor" content="development-only" />
+    <title>{archive ? 'Archive' : trashView ? 'Trash' : post?.data.title || 'Editor'} | Microbloggr</title>
+    <script is:inline>
+      try {
+        const theme = localStorage.getItem("microbloggr:theme");
+        if (theme === "light" || theme === "dark")
+          document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
+  </head>
+  <body
+    data-editor-url={editorUrl}
+    data-collection-state={JSON.stringify(collectionState({ posts, errors }))}
+  >
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <header class="app-header">
+      <div class="header-inner">
+        <a class="wordmark" href={editorUrl} aria-label="Microbloggr homepage">
+          microbloggr
+        </a>
+        <nav class="desktop-nav segmented" aria-label="Main navigation">
+          <a
+            href={editorUrl}
+            aria-current={active === "feed" ? "page" : undefined}
+          >
+            Feed
+          </a>
+          <a
+            href={`${editorUrl}/archive`}
+            aria-current={active === "archive" ? "page" : undefined}
+          >
+            Archive
+          </a>
+        </nav>
+        <div class="header-end">
+          <button
+            type="button"
+            class="icon-button"
+            data-theme-toggle
+            aria-label="Switch color theme"
+            title="Switch color theme"
+          >
+            <Icon name="theme" />
+          </button>
+        </div>
+        <form
+          class="header-search search-field"
+          action={`${editorUrl}/archive`}
+          method="get"
+          role="search"
+        >
+          <Icon name="search" />
+          <label class="sr-only" for="dashboard-search">
+            Search posts
+          </label>
+          <input id="dashboard-search" name="q" type="search" value={search} />
+          {archive &&
+            Object.entries({ type: requestedType, tag, status }).map(
+              ([name, value]) =>
+                value && <input type="hidden" name={name} value={value} />,
+            )}
+        </form>
+        <details class="mobile-nav">
+          <summary>Menu</summary>
+          <nav aria-label="Mobile navigation">
+            <a href={editorUrl}>Feed</a>
+            <a href={`${editorUrl}/archive`}>Archive</a>
+          </nav>
+        </details>
+      </div>
+    </header>
+    <main
+      id="main"
+      class:list={["workspace", { "archive-workspace": archive }]}
+    >
+      <header class:list={["page-heading", { "sr-only": !notFound }]}>
+        <h1>{heading}</h1>
+        {notFound && (
+          <p>This post does not exist in the microblog collection.</p>
+        )}
+      </header>
+
+      <div class="change-notice" data-change-notice role="status" hidden>
+        <span data-change-message></span>
+        <a href={`${Astro.url.pathname}${Astro.url.search}`}>
+          Reload saved posts
+        </a>
+      </div>
+
+      {errors.length > 0 && (
+        <section class="file-errors" role="alert">
+          <h2>Some files need attention</h2>
+          <ul>
+            {errors.map((error) => (
+              <li>
+                {error.file}: {error.message}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {notFound ? (
+        <a href={editorUrl}>Back to the feed</a>
+      ) : archive ? (
+        <>
+          <div class="archive-toolbar">
+            <p class="result-count" role="status">
+              {filtered.length} {filtered.length === 1 ? "post" : "posts"}
+              {search ? ` matching “${search}”` : ""}
+            </p>
+            <form
+              class="archive-filters"
+              action={`${editorUrl}/archive`}
+              method="get"
+            >
+              {search && <input type="hidden" name="q" value={search} />}
+              <div>
+                <label class="sr-only" for="type">
+                  Post type
+                </label>
+                <select id="type" name="type">
+                  <option value="">All types</option>
+                  {types.map((type) => (
+                    <option value={type} selected={requestedType === type}>
+                      {type[0].toUpperCase() + type.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label class="sr-only" for="tag">
+                  Tag
+                </label>
+                <select id="tag" name="tag">
+                  <option value="">All tags</option>
+                  {tags.map((item) => (
+                    <option value={item} selected={tag === item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label class="sr-only" for="status">
+                  Status
+                </label>
+                <select id="status" name="status">
+                  <option value="">All posts</option>
+                  <option value="published" selected={status === "published"}>
+                    Published
+                  </option>
+                  <option value="draft" selected={status === "draft"}>
+                    Drafts
+                  </option>
+                </select>
+              </div>
+            </form>
+          </div>
+          {filtered.length === 0 && (
+            <div class="empty-state">
+              <h2>No posts found</h2>
+              <p>Try another search or clear the filters.</p>
+            </div>
+          )}
+          {[...groups].map(([month, posts]) => (
+            <section class="month-group">
+              <header>
+                <h2>{month}</h2>
+              </header>
+              <div class="archive-grid">
+                {posts.map((item) => (
+                  <a
+                    class:list={[
+                      "archive-card",
+                      `archive-${item.data.type}`,
+                      { "has-cover": cover(item, siteBase) },
+                    ]}
+                    href={`${editorUrl}/posts/${item.id}/edit?returnTo=${encodeURIComponent(archiveUrl)}`}
+                    aria-label={`Edit ${item.data.title || item.data.type + " post"}${item.data.status === "draft" ? ", draft" : ""}`}
+                  >
+                    {cover(item, siteBase) ? (
+                      <img src={cover(item, siteBase)} alt="" loading="lazy" />
+                    ) : item.data.type === "text" ? (
+                      <div class="archive-excerpt">
+                        <h3>{item.data.title || "Untitled post"}</h3>
+                        <p>{excerpt(item)}</p>
+                      </div>
+                    ) : (
+                      item.data.title && (
+                        <h3 class="archive-title">{item.data.title}</h3>
+                      )
+                    )}
+                    {item.data.type !== "text" &&
+                      !(
+                        item.data.type === "photo" && cover(item, siteBase)
+                      ) && (
+                        <span class="archive-type">
+                          <PostTypeIcon type={item.data.type} />
+                        </span>
+                      )}
+                    <span class="archive-hover" aria-hidden="true">
+                      {dateLabel(dateOf(item))}
+                    </span>
+                    {item.data.status === "draft" && (
+                      <span class="draft-badge">Draft</span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
+          <Pagination page={page} pageCount={pageCount} pageLink={pageLink} />
+        </>
+      ) : (
+        <div class="editor-columns">
+          <div class="main-column">
+            {trashView ? (
+              <section class="trash" data-trash aria-labelledby="trash-heading">
+                <div class="trash-toolbar">
+                  <h2 id="trash-heading">Trash</h2>
+                </div>
+                <p class="form-error" data-trash-error role="alert" hidden></p>
+                {trashed.length === 0 ? (
+                  <div class="empty-state">
+                    <h2>Trash is empty</h2>
+                    <p>
+                      Deleted posts stay here until you delete them forever.
+                    </p>
+                  </div>
+                ) : (
+                  <div class="trash-list">
+                    <div class="trash-bulk">
+                      <label class="trash-check">
+                        <input type="checkbox" data-select-all />
+                        <span>Select all</span>
+                      </label>
+                      <span class="meta" data-selected-count></span>
+                      <div class="trash-actions">
+                        <button
+                          type="button"
+                          class="ghost small"
+                          data-restore-selected
+                          disabled
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          class="ghost small danger-text"
+                          data-delete-selected
+                          disabled
+                        >
+                          Delete forever
+                        </button>
+                      </div>
+                    </div>
+                    <ul role="list">
+                      {trashed.map((item) => {
+                        const entry = item as unknown as Post;
+                        const thumb = cover(entry, siteBase);
+                        const name =
+                          item.data.title ||
+                          excerpt(entry).slice(0, 80) ||
+                          `${label(item.data.type)} post`;
+                        return (
+                          <li class="trash-item" data-trash-id={item.trashId}>
+                            <label class="trash-check">
+                              <input
+                                type="checkbox"
+                                data-select
+                                aria-label={`Select ${name}`}
+                              />
+                            </label>
+                            <span class="trash-thumb">
+                              {thumb ? (
+                                <img src={thumb} alt="" loading="lazy" />
+                              ) : (
+                                <PostTypeIcon type={item.data.type} />
+                              )}
+                            </span>
+                            <div class="trash-text">
+                              <p class="trash-title">{name}</p>
+                              <p class="meta">
+                                {label(item.data.type)}
+                                {item.data.status === "draft" ? " draft" : ""},
+                                deleted {dateLabel(new Date(item.deletedAt))}
+                              </p>
+                            </div>
+                            <div class="trash-actions">
+                              <button
+                                type="button"
+                                class="ghost small"
+                                data-restore
+                              >
+                                Restore
+                              </button>
+                              <button
+                                type="button"
+                                class="icon-button delete"
+                                data-delete-forever
+                                aria-label={`Delete ${name} forever`}
+                                title="Delete forever"
+                              >
+                                <Icon name="trash" />
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                <dialog
+                  class="confirm-dialog"
+                  data-trash-dialog
+                  aria-labelledby="trash-dialog-heading"
+                >
+                  <form method="dialog">
+                    <h2 id="trash-dialog-heading"></h2>
+                    <p>
+                      Media files are deleted too, unless another post uses
+                      them. This can’t be undone.
+                    </p>
+                    <div class="dialog-actions">
+                      <button value="cancel" class="ghost" autofocus>
+                        Cancel
+                      </button>
+                      <button value="delete" class="danger">
+                        Delete forever
+                      </button>
+                    </div>
+                  </form>
+                </dialog>
+              </section>
+            ) : post ? (
+              <>
+                {editing ? (
+                  <Composer
+                    revision={post.revision}
+                    type={post.data.type}
+                    post={post}
+                    editorUrl={editorUrl}
+                    returnTo={returnTo}
+                  />
+                ) : (
+                  <PostCard
+                    post={post}
+                    editorUrl={editorUrl}
+                    siteBase={siteBase}
+                    detail
+                  />
+                )}
+              </>
+            ) : (
+              <>
+                <section class="create-section" aria-label="Create a post">
+                  <div class="type-selector">
+                    {types.map((type) => (
+                      <a
+                        class:list={["type-choice", type]}
+                        href={
+                          composeType === type
+                            ? editorUrl
+                            : `${editorUrl}?type=${type}`
+                        }
+                        aria-current={composeType === type ? "true" : undefined}
+                      >
+                        <PostTypeIcon type={type} />
+                        <span class="sr-only">{label(type)}</span>
+                        <span class="tooltip" aria-hidden="true">
+                          {label(type)}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </section>
+                {composeType && (
+                  <Composer type={composeType} editorUrl={editorUrl} />
+                )}
+                <h2 class="sr-only">Posts</h2>
+                <div class="feed">
+                  {visible.map((item) => (
+                    <PostCard
+                      post={item}
+                      editorUrl={editorUrl}
+                      siteBase={siteBase}
+                    />
+                  ))}
+                </div>
+                <Pagination
+                  page={page}
+                  pageCount={pageCount}
+                  pageLink={pageLink}
+                />
+                {all.length === 0 && (
+                  <div class="empty-state">
+                    <h2>A fresh page</h2>
+                    <p>
+                      Add Markdown to your microblog collection to see it here.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <aside class="sidebar" aria-label="Collection">
+            <section>
+              <h2 class="sr-only">Collection</h2>
+              <nav class="collection-summary" aria-label="Post status">
+                <a href={`${editorUrl}/archive`}>
+                  <span>All posts</span>
+                  <span>{all.length}</span>
+                </a>
+                <a href={`${editorUrl}/archive?status=published`}>
+                  <span>Published</span>
+                  <span>
+                    {
+                      all.filter((item) => item.data.status === "published")
+                        .length
+                    }
+                  </span>
+                </a>
+                <a href={`${editorUrl}/archive?status=draft`}>
+                  <span>Drafts</span>
+                  <span>
+                    {all.filter((item) => item.data.status === "draft").length}
+                  </span>
+                </a>
+                <a
+                  href={`${editorUrl}/trash`}
+                  aria-current={trashView ? "page" : undefined}
+                >
+                  <span>Trash</span>
+                  <span>{trashed.length}</span>
+                </a>
+              </nav>
+            </section>
+            <section>
+              <h2>Tags</h2>
+              <ul role="list" class="sidebar-tags">
+                {tags.map((item) => (
+                  <li>
+                    <a
+                      href={`${editorUrl}/archive?tag=${encodeURIComponent(item)}`}
+                    >
+                      #{item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </aside>
+        </div>
+      )}
+    </main>
+    <script is:inline type="module" src={config.clientUrl}></script>
+  </body>
+</html>

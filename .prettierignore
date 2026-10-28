@@ -1,0 +1,9 @@
+node_modules
+dist
+.astro
+.impeccable
+.claude
+package-lock.json
+playground
+tests/fixtures/site/src/content/microblog
+tests/fixtures/site/public
